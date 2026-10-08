@@ -1,0 +1,22 @@
+services:
+  migrator:
+    container_name: migrator
+    build:
+      context: ./src
+      dockerfile: Migrator/Dockerfile
+    restart: "no"
+    command:
+      - "--host"
+      - "${MIGRATOR_DB_HOST:-postgres}"
+      - "--port"
+      - "${MIGRATOR_DB_PORT:-5432}"
+      - "--user"
+      - "${MIGRATOR_DB_USER:-postgres}"
+      - "--password-env"
+      - "DB_PG_PWD_POSTGRES"
+      - "--scripts"
+      - "/app/scripts"
+    environment:
+      - DB_PG_PWD_POSTGRES=${DB_PG_PWD_POSTGRES:?DB_PG_PWD_POSTGRES is required}
+    volumes:
+      - ${MIGRATOR_SCRIPTS_PATH:-./examples/scripts}:/app/scripts:ro
