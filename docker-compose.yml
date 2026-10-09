@@ -1,10 +1,33 @@
+# Шаблон сервиса pelmesh-migrator для внедрения в свой проект.
+#
+# Варианты:
+# 1) Скопировать `services.migrator` в родительский docker-compose.yml
+# 2) Подключить файл: docker compose -f docker-compose.yml -f ./pelmesh-migrator/docker-compose.yml ...
+#    (поправьте MIGRATOR_BUILD_CONTEXT / volumes под путь к клону)
+#
+# Со стороны вызывающего:
+# - PostgreSQL доступен в той же Docker-сети (сервис или external network)
+# - Базы уже созданы (migrator их не создаёт)
+# - В .env задан DB_PG_PWD_POSTGRES (см. .env.example)
+#
+# Default layout: nested → монтируйте каталог вида scripts/<имя_бд>/*.sql
+
 services:
   migrator:
-    container_name: migrator
+    container_name: ${MIGRATOR_CONTAINER_NAME:-migrator}
     build:
-      context: ./src
+      context: ${MIGRATOR_BUILD_CONTEXT:-./src}
       dockerfile: Migrator/Dockerfile
+      args:
+        RUNTIME_IMAGE: ${MIGRATOR_RUNTIME_IMAGE:-mcr.microsoft.com/dotnet/runtime:8.0}
+        SDK_IMAGE: ${MIGRATOR_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:8.0}
     restart: "no"
+    # Раскомментируйте, если Postgres — соседний сервис в том же compose:
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+    networks:
+      - migrator_net
     command:
       - "--host"
       - "${MIGRATOR_DB_HOST:-postgres}"
@@ -16,7 +39,27 @@ services:
       - "DB_PG_PWD_POSTGRES"
       - "--scripts"
       - "/app/scripts"
+      # Опционально (defaults = поведение CLI без флагов):
+      # - "--layout"
+      # - "nested"                 # nested | flat | by-filename
+      # - "--database"
+      # - "appdb"                  # обязателен для flat
+      # - "--on-error"
+      # - "fail"                   # fail | continue
+      # - "--transaction"
+      # - "all"                    # all | per-file | none
+      # - "--ignore-unmatched"
+      # - "--fail-on-script-errors"
+      # - "--no-verify-hash"
+      # - "--store-sql"
+      # - "false"
     environment:
-      - DB_PG_PWD_POSTGRES=${DB_PG_PWD_POSTGRES:?DB_PG_PWD_POSTGRES is required}
+      DB_PG_PWD_POSTGRES: ${DB_PG_PWD_POSTGRES:?DB_PG_PWD_POSTGRES is required}
     volumes:
       - ${MIGRATOR_SCRIPTS_PATH:-./examples/scripts}:/app/scripts:ro
+
+networks:
+  migrator_net:
+    name: ${MIGRATOR_NETWORK:-pelmesh-migrator}
+    # Если сеть уже создана родительским compose (рекомендуется при внедрении):
+    # external: true

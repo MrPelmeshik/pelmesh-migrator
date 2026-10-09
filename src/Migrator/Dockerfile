@@ -1,9 +1,12 @@
-﻿FROM mcr.microsoft.com/dotnet/runtime:8.0 AS base
+﻿ARG RUNTIME_IMAGE=mcr.microsoft.com/dotnet/runtime:8.0
+ARG SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:8.0
+
+FROM ${RUNTIME_IMAGE} AS base
 ARG APP_UID=0
 USER ${APP_UID}
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM ${SDK_IMAGE} AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["Migrator/Migrator.csproj", "Migrator/"]
